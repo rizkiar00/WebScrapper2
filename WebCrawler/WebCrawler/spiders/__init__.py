@@ -13,21 +13,21 @@ class AdaptSpider(scrapy.Spider):
     def parse(self, response):
 
 
-        cssclass = ".DirectoryTopInfo_alphabetLinkListWrapper__4a1SM a::attr(href)"
-        next_urls = response.css(cssclass).extract()[0:2]
+        cssclass = ".DirectoryList_seoDirectoryList__aMaj8 a::attr(href)"
+        next_urls = response.css(cssclass).extract()
         print(next_urls)
         return (Request(url, callback=self.parse_company) for url in next_urls)
 
-    def getinformation(self, nameurl, info,):
+    def getinformation(self, info,):
         infodict = {}
-        try:
-            infodict["Company_Name"] = nameurl[0]
-        except IndexError:
-            infodict["Company_Name"] = 0
-        try:
-            infodict["Company_URL"] = nameurl[1]
-        except IndexError:
-            infodict["Company_URL"] = 0
+        # try:
+        #     infodict["Company_Name"] = nameurl[0]
+        # except IndexError:
+        #     infodict["Company_Name"] = 0
+        # try:
+        #     infodict["Company_URL"] = nameurl[1]
+        # except IndexError:
+        #     infodict["Company_URL"] = 0
         try:
             idxRV = info.index("Revenue")
             infodict["Revenue"] = info[idxRV+1]
@@ -44,21 +44,23 @@ class AdaptSpider(scrapy.Spider):
             idxIN = info.index("Industry")
             infodict["Industry"] = info[idxIN+1]
         except ValueError:
-            infodict["Head Count"] = 0
+            infodict["Industry"] = 0
 
         try:
             idxLC = info.index("Location")
-            infodict["Industry"] = "".join(info[idxLC:])
+            infodict["Location"] = "".join(info[idxLC+1:])
         except ValueError:
-            infodict["Industry"] = 0
+            infodict["Location"] = 0
+        return infodict
 
     def parse_company(self, response):
         nameurl = response.css(".CompanyTopInfo_leftContentWrap__3gIch ::text").extract()
         information = response.css(".CompanyTopInfo_contentWrapper__2Jkic ::text").extract()
-        procesinfo = self.getinformation(nameurl,information)
+        url = response.request.url
+        procesinfo = self.getinformation(information)
         yield {
-            "Company_Name": procesinfo["Company_Name"],
-            "Company_URL":  procesinfo["Company_URL"],
+            "Company_Name": nameurl[0],
+            "Company_URL":  nameurl[1],
             "Revenue" : procesinfo["Revenue"],
             "Head_Count" : procesinfo["Head Count"],
             "Industry" : procesinfo["Industry"],
@@ -68,9 +70,9 @@ class AdaptSpider(scrapy.Spider):
         # for next_url in next_urls:
         #     yield Request(response.urljoin(next_url), callback=self.parse_company)
         NEXT_PAGE_SELECTOR = ".DirectoryList_actionBtnLink__Seqhh a::attr(href)"
-        next_page = response.css(NEXT_PAGE_SELECTOR).extract_first()
+        next_page = response.css(NEXT_PAGE_SELECTOR).extract()
         if next_page:
             yield scrapy.Request(
-                response.urljoin(next_page),
+                response.urljoin(next_page[-1]),
                 callback=self.parse
             )
